@@ -3,12 +3,14 @@ from bs4 import BeautifulSoup
 from unicodedata import normalize, combining
 import time
 
-# Decidi remover alguns acentos e sinais para faciltar anilises futuras
+# Decidi remover acentos e sinais para facilitar anilises futuras
+
+
 def normalizar_string(texto):
     texto_normalizado = normalize('NFKD', texto)
 
     substituicoes = {
-        "º": "",          
+        "º": "",
         "“": "\"",
         "”": "\"",
         "–": "-",
@@ -18,7 +20,6 @@ def normalizar_string(texto):
     for caractere, novo in substituicoes.items():
         texto_normalizado = texto_normalizado.replace(caractere, novo)
 
-    
     return ''.join(c for c in texto_normalizado if not combining(c))
 
 
@@ -39,30 +40,30 @@ def extrair_tabela(soup):
             })
     return registros
 
-
-def scrape_por_ano(ano="2023", opcao="opt_04"):
-    url = f"http://vitibrasil.cnpuv.embrapa.br/index.php?ano={ano}&opcao={opcao}"
-    response = requests.get(url)
-    response.encoding = 'utf-8'
-    soup = BeautifulSoup(response.text, "html.parser")
-    registros = extrair_tabela(soup)
-    return {
-        "ano": ano,
-        "total_registros": len(registros),
-        "registros": registros
-    }
+# Coletando todos os anos para producao ou comercializacao
 
 
-def scrape_todos_os_anos(opcao="opt_04"):
+def scraper_todos_os_anos(opcao):
     dados = []
     for ano in range(1970, 2024):
         print(f"Coletando {opcao} - {ano}")
         try:
-            resultado = scrape_por_ano(str(ano), opcao)
+            url = f"http://vitibrasil.cnpuv.embrapa.br/index.php?ano={ano}&opcao={opcao}"
+            response = requests.get(url)
+            response.encoding = 'utf-8'
+            soup = BeautifulSoup(response.text, "html.parser")
+            registros = extrair_tabela(soup)
+            dados.append({
+                "ano": str(ano),
+                "total_registros": len(registros),
+                "registros": registros
+            })
         except Exception as e:
-            print(f"Falha em {ano}: {e}")
-            resultado = {"ano": str(ano), "registros": [],
-                         "total_registros": 0}
-        dados.append(resultado)
+            print(f"Falha {ano}: {e}")
+            dados.append({
+                "ano": str(ano),
+                "total_registros": 0,
+                "registros": []
+            })
         time.sleep(0.5)
     return dados
