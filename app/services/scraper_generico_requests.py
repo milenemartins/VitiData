@@ -3,13 +3,12 @@ from bs4 import BeautifulSoup
 from unicodedata import normalize, combining
 import time
 
-
+# Decidi remover alguns acentos e sinais para faciltar anilises futuras
 def normalizar_string(texto):
     texto_normalizado = normalize('NFKD', texto)
 
-    # Substituições específicas
     substituicoes = {
-        "º": "",          # remove símbolos no geral
+        "º": "",          
         "“": "\"",
         "”": "\"",
         "–": "-",
@@ -19,7 +18,7 @@ def normalizar_string(texto):
     for caractere, novo in substituicoes.items():
         texto_normalizado = texto_normalizado.replace(caractere, novo)
 
-    # Removendo acentos facilitando analises posteriores
+    
     return ''.join(c for c in texto_normalizado if not combining(c))
 
 
