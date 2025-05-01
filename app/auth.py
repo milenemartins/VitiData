@@ -1,0 +1,1 @@
+# autenticação (ex: JWT)
