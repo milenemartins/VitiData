@@ -1,14 +1,29 @@
-# Virtual Environment
+# Ambiente virtual
 env/
-.env
+.venv/
+venv/
+ENV/
 
-# Python Cache
+# Cache do Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
 
-# VS Code
-.vscode/
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
 
-# Logs
+# Arquivos temporários ou de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos gerados
+*.csv
 *.log
+
+# Arquivos de configuração pessoais
+*.env
+*.vscode/
