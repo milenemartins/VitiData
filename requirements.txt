@@ -1,7 +1,6 @@
 Flask
 requests
-beautifulsoup4
-python-dotenv
 beautifulsoup4==4.12.2
+python-dotenv
 selenium==4.15.2
 pandas==2.1.3
