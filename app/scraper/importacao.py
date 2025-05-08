@@ -3,9 +3,11 @@ import time
 import csv
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
-import pandas as pd 
+from app.schemas.vinho import ComercioEntrada
+from pydantic import ValidationError
+from app.state.validados import dados_validados
+
 
 # Mapeamento de categorias e seus códigos no site
 categorias = {
@@ -174,4 +176,59 @@ def coletarTudo():
     print("🏁 Finalizado!")
     
 if __name__ == "__main__":
-    coletarTudo()
+    try:
+        # Obter intervalo de anos desejado
+        anosSelecionados = definirIntervaloAnos()
+    except ValueError as erro:
+        print(f"❌ Erro: {erro}")
+        exit()
+
+    chrome = iniciarDriver()
+    validados = []
+
+    for categoriaNome, codigo in categorias.items():
+        resultado = extrairPorCategoriaEAnos(chrome, categoriaNome, codigo, anosSelecionados)
+
+        if resultado:
+            salvarCsv(resultado, categoriaNome)
+            
+            
+            # Validação Pydantic
+            for row in resultado:
+                try:
+                    ano = int(row[0])
+                    pais = row[1]
+
+                    qtd_raw = row[2].strip().lower()
+                    if qtd_raw in ["-", "nd", ""]:
+                        quantidade = 0.0
+                    else:
+                        quantidade = float(qtd_raw.replace('.', '').replace(',', '.'))
+
+                    val_raw = row[3].strip().lower()
+                    if val_raw in ["-", "nd", ""]:
+                        valor = 0.0
+                    else:
+                        valor = float(val_raw.replace('.', '').replace(',', '.'))
+
+                    registro = {
+                        "ano": ano,
+                        "categoria": categoriaNome,
+                        "pais": pais,
+                        "quantidade": quantidade,
+                        "valor": valor
+                    }
+
+                    item = ComercioEntrada(**registro)
+                    validados.append(item)
+
+                except ValidationError as e:
+                    print(f"❌ Erro de validação para {categoriaNome} - {row}:\n{e}")
+
+        else:
+            print(f"⚠️ Nenhum dado encontrado para: {categoriaNome}")
+
+    chrome.quit()
+    print(f"🏁 Finalizado! Total de registros validados: {len(validados)}")
+
+    dados_validados["importacao"] = validados
