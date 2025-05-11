@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from app.schemas.vinho import ComercioEntrada
 from pydantic import ValidationError
 from app.state.validados import dados_validados
+import pandas as pd
 
 
 # Mapeamento de categorias e seus códigos no site
@@ -20,7 +21,7 @@ categorias = {
 
 # Anos disponíveis no site
 anoAtual = 2024
-anoInicial = 1970
+anoInicial = 1999
 
 
 def iniciarDriver():
@@ -175,7 +176,7 @@ def coletarTudo():
     chrome.quit()
     print("🏁 Finalizado!")
     
-if __name__ == "__main__":
+def scrape_importacao():
     try:
         # Obter intervalo de anos desejado
         anosSelecionados = definirIntervaloAnos()
@@ -191,7 +192,6 @@ if __name__ == "__main__":
 
         if resultado:
             salvarCsv(resultado, categoriaNome)
-            
             
             # Validação Pydantic
             for row in resultado:
@@ -232,3 +232,10 @@ if __name__ == "__main__":
     print(f"🏁 Finalizado! Total de registros validados: {len(validados)}")
 
     dados_validados["importacao"] = validados
+
+    #P/ O Modelo
+
+    df = pd.DataFrame([v.dict() for v in validados])
+    df.to_csv("dadosImportacao.csv", index=False)
+
+    return [v.dict() for v in validados]

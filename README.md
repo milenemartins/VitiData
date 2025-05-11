@@ -1,114 +1,114 @@
-# 📊 Scraper de Importação de Uvas e Derivados - Embrapa
+# VitiData API
 
-Este projeto coleta automaticamente os dados da aba **Importação** do site da [Embrapa - Vitibrasil](http://vitibrasil.cnpuv.embrapa.br) para diferentes produtos derivados de uva, como vinhos, espumantes e sucos. Os dados são salvos em arquivos `.csv`, organizados por categoria e ano.
+## Visão Geral do Projeto
 
-## 🔧 Tecnologias utilizadas
+O **VitiData API** é uma aplicação desenvolvida como parte de um Tech Challenge da Embrapa. Seu objetivo é:
 
-- Python 3.10+
-- Selenium
-- BeautifulSoup
-- Pandas
+1. **Raspagem (web scraping)** dos dados de vitivinicultura nas cinco abas principais do site da Embrapa:
 
-## 📁 Estrutura do projeto
+   * Produção
+   * Processamento
+   * Comercialização
+   * Importação
+   * Exportação
+2. **API REST** em Python (Flask) para:
 
-```
-📦 dadosImportacao/
-┣ 📄 vinhosDeMesa.csv
-┣ 📄 espumantes.csv
-...
-📄 importacao_embrapa_final_estruturado.ipynb
-📄 README.md
-```
+   * Acionar os scrapers de cada módulo
+   * Persistir os dados em um banco SQL via SQLAlchemy
+   * Consultar registros já coletados
+3. **Autenticação** de usuários via JWT para proteger as rotas de scraping e consulta.
+4. **Documentação automática** com Swagger UI, gerada pelo Flask‑RESTX.
+5. **Script de limpeza** para remover caches e bancos antigos antes de iniciar a aplicação.
 
-## 🚀 Como executar
-
-1. Clone este repositório
-2. Instale as dependências:
-
-```bash
-pip install -r requirements.txt
-```
-
-3. Execute o script Python (`.py`) ou utilize o Jupyter Notebook:
-
-```bash
-python importacao.py
-```
-
-ou abra no Jupyter:
-
-```bash
-jupyter notebook importacao_embrapa_final_estruturado.ipynb
-```
-
-## ✅ Opções de anos disponíveis
-
-Ao rodar o script, você poderá escolher:
-
-- `1` → Último ano (2024)
-- `2` → Um ano específico (ex: 2015)
-- `3` → Últimos 5 anos
-- `4` → Últimos 10 anos
-- `5` → Todos os anos (1970 a 2024)
-
-## 📦 Produtos disponíveis
-
-- Vinhos de Mesa
-- Espumantes
-- Uvas Frescas
-- Uvas Passas
-- Suco de Uva
-
-## 📌 Observações
-
-- O site da Embrapa utiliza HTTP e não HTTPS, por isso o navegador é configurado para aceitar conexões inseguras.
-- O scraping é realizado com `Selenium` em modo headless.
+Os dados coletados ficam armazenados num banco SQLite (por padrão) e podem alimentar futuramente modelos de Machine Learning.
 
 ---
-# Scraping de Dados de Processamento da Embrapa
 
-Este projeto realiza o scraping da página da Embrapa com dados de **uvas processadas no Rio Grande do Sul**, disponíveis no site do projeto VitiBrasil: [http://vitibrasil.cnpuv.embrapa.br/](http://vitibrasil.cnpuv.embrapa.br/).
+## Funcionalidades Principais
 
-Os dados coletados abrangem os anos de **1970 até o ano atual**, e são extraídos da aba "Processamento" (opção `opt_03` do site).
+* **/auth/register** (POST): registra novo usuário.
+* **/auth/login** (POST): faz login e retorna token JWT.
+* **/scrape** (POST): dispara a raspagem de uma das categorias (`producao`, `processamento`, `comercializacao`, `importacao`, `exportacao`).
+* **/wines** (GET): lista registros, com filtros opcionais por `pagina`, `ano` e `vinho`.
+* **/wines/{id}** (GET): detalha um registro específico.
+* **/apidocs/**: interface Swagger interativa para explorar todos os endpoints.
+* **run.py --clean**: comando para apagar diretórios `__pycache__`, a pasta `instance/` e arquivos `.db` antes de iniciar a API.
 
-## 📁 Estrutura do Projeto
+---
 
+## Estrutura de Pastas
+
+```text
+VitiData/
+├── app/
+│   ├── __init__.py        # App factory, init de DB, JWT e Swagger
+│   ├── config.py          # Configurações via .env
+│   ├── auth.py            # Namespace de autenticação (Flask-RESTX)
+│   ├── models.py          # Models User e WineData (SQLAlchemy)
+│   ├── routes/            # Namespace de scraping e consulta
+│   │   └── routes.py
+│   ├── scraper/           # Módulos de scraping por categoria
+│   └── state/             # Estado em memória (validados)
+├── run.py                 # Entry point e script de limpeza
+├── requirements.txt       # Dependências
+└── README.md              # Documentação do projeto
 ```
-SCRAPING_PROCESSAMENTO/
-├── env/                              # Ambiente virtual (não versionado)
-├── dados_processamento_embrapa.csv  # Arquivo gerado com os dados raspados
-├── processamento.ipynb              # Notebook com o código de scraping
-├── requirements.txt                 # Lista de dependências do projeto
-├── .gitignore                       # Arquivos/pastas ignorados pelo Git
-└── README.md                        # Documentação do projeto
-```
 
-## ▶️ Como Executar
+---
 
-1. Clone o repositório ou baixe os arquivos.
+## Instalação e Execução
 
-2. Crie e ative o ambiente virtual:
+1. **Clone** o repositório e entre na pasta:
 
    ```bash
-   python -m venv env  # Criar ambiente virtual
-   source env/bin/activate        # Ativar no Linux/Mac
-   env\Scripts\activate         # Ativar no Windows
+   git clone <URL-do-repo>
+   cd VitiData
    ```
-
-3. Instale as dependências:
+2. **Virtualenv** e dependências:
 
    ```bash
+   python -m venv .venv
+   source .venv/bin/activate   # Linux/Mac
+   .venv\Scripts\activate    # Windows
    pip install -r requirements.txt
    ```
+3. **Variáveis de ambiente** (`.env` na raiz):
 
-4. Execute o notebook `processamento.ipynb` no Jupyter ou no VS Code.
+   ```ini
+   SECRET_KEY=<chave-flask>
+   JWT_SECRET_KEY=<chave-jwt>
+   DATABASE_URL=sqlite:///app.db  # ou sua URI SQL
+   ```
+4. **Limpar caches** (opcional):
 
-5. O arquivo `dados_processamento_embrapa.csv` será gerado automaticamente com os dados raspados.
+   ```bash
+   python run.py --clean
+   ```
+5. **Rodar a API**:
 
-## 🛠️ Tecnologias Utilizadas
+   ```bash
+   python run.py        # modo debug
+   # ou
+   flask run
+   ```
+6. **Acesse**:
 
-- Python 3
-- Jupyter Notebook
-- BeautifulSoup4
-- Requests
-- Pandas
+   * **API Base:** `http://localhost:5000`
+   * **Swagger UI:** `http://localhost:5000/apidocs/`
+
+---
+
+## Testes com Postman
+
+1. Crie um **Environment** `Local API` com:
+
+   * `base_url = http://localhost:5000`
+   * `token = ` (vazio inicialmente)
+2. Coleção **VitiData API** com requests:
+
+   * **Register**: POST `{{base_url}}/auth/register`
+   * **Login**: POST `{{base_url}}/auth/login` (salvar `{{token}}` via script de teste)
+   * **Scrape Produção**: POST `{{base_url}}/scrape` (body `{ "pagina":"producao" }`)
+   * **List Wines**: GET `{{base_url}}/wines`
+   * **Get Wine by ID**: GET `{{base_url}}/wines/{{id}}`
+3. Use header `Authorization: Bearer {{token}}` nas rotas protegidas.

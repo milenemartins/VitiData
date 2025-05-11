@@ -22,7 +22,7 @@ def scrape_exportacao():
 
 
       # está criando um loop que percorre os anos de 1970 até o ano atual
-      for ano in range(1970, current_year + 1):
+      for ano in range(1999, current_year + 1):
           print(f"Raspando dados do ano {ano}...")
 
           # faz uma requisição para a URL que tem o ano formatado dentro dela.
@@ -97,36 +97,34 @@ def scrape_exportacao():
                   print(f"Ano: {ano} | Categoria: {nome_opcao} | País: {pais} | Quantidade: {quantidade} | Valor(US$): {valor}")
       sub_opc = sub_opc + 1
     print(f"Raspagem concluída. Total de registros: {len(resultados)}")
-    return resultados
+
+    validados = []
+
+    for item in resultados:
+        try:
+            qtd_raw = item["quantidade"].strip().lower()
+            if qtd_raw in ["-", "nd", ""]:
+                item["quantidade"] = 0.0
+            else:
+                item["quantidade"] = float(qtd_raw.replace('.', '').replace(',', '.'))
+
+            val_raw = item["valor"].strip().lower()
+            if val_raw in ["-", "nd", ""]:
+                item["valor"] = 0.0
+            else:
+                item["valor"] = float(val_raw.replace('.', '').replace(',', '.'))
+
+            validado = ComercioEntrada(**item)
+            validados.append(validado)
+        except ValidationError as e:
+            print(f"❌ Erro de validação no registro: {item}\n{e}")
 
 
-# ==== Validação separada ====
-dados_export = scrape_exportacao()
+    dados_validados["exportacao"] = validados
 
-validados = []
+    #P/ O Modelo
 
-for item in dados_export:
-    try:
-        qtd_raw = item["quantidade"].strip().lower()
-        if qtd_raw in ["-", "nd", ""]:
-            item["quantidade"] = 0.0
-        else:
-            item["quantidade"] = float(qtd_raw.replace('.', '').replace(',', '.'))
+    df = pd.DataFrame([v.dict() for v in validados])
+    df.to_csv("dadosExportacao.csv", index=False)
 
-        val_raw = item["valor"].strip().lower()
-        if val_raw in ["-", "nd", ""]:
-            item["valor"] = 0.0
-        else:
-            item["valor"] = float(val_raw.replace('.', '').replace(',', '.'))
-
-        validado = ComercioEntrada(**item)
-        validados.append(validado)
-    except ValidationError as e:
-        print(f"❌ Erro de validação no registro: {item}\n{e}")
-
-
-dados_validados["exportacao"] = validados
-
-# Salvar CSV
-df = pd.DataFrame([v.dict() for v in validados])
-df.to_csv("dadosExportacao.csv", index=False)
+    return [v.dict() for v in validados]

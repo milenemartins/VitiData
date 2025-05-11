@@ -69,31 +69,28 @@ def scrape_producao_pages():
                 print(f"Ano: {ano} | Tipo: {tipo} | Quantidade: {quantidade}")
 
     print(f"\nRaspagem concluída. Total de registros: {len(resultados)}")
-    return resultados
+    
+    validados = []
+
+    for item in resultados:
+        try:
+            qtd_raw = item["quantidade"].strip().lower()
+            if qtd_raw in ["-", "nd", ""]:
+                item["quantidade"] = 0.0
+            else:
+                item["quantidade"] = float(qtd_raw.replace('.', '').replace(',', '.'))
+
+            validado = VinhoEntrada(**item)
+            validados.append(validado)
+        except ValidationError as e:
+            print(f"❌ Erro de validação no registro: {item}\n{e}")
 
 
-# Executa o scraper
-dados_producao = scrape_producao_pages()
-
-# Validação com Pydantic
-validados = []
-
-for item in dados_producao:
-    try:
-        qtd_raw = item["quantidade"].strip().lower()
-        if qtd_raw in ["-", "nd", ""]:
-            item["quantidade"] = 0.0
-        else:
-            item["quantidade"] = float(qtd_raw.replace('.', '').replace(',', '.'))
-
-        validado = VinhoEntrada(**item)
-        validados.append(validado)
-    except ValidationError as e:
-        print(f"❌ Erro de validação no registro: {item}\n{e}")
+    dados_validados["producao"] = validados
 
 
-dados_validados["producao"] = validados
+    # Salvar CSV
+    df = pd.DataFrame([v.dict() for v in validados])
+    df.to_csv("dadosProducao.csv", index=False)
 
-# Salvar CSV
-df = pd.DataFrame([v.dict() for v in validados])
-df.to_csv("dadosProducao.csv", index=False)
+    return [v.dict() for v in validados]

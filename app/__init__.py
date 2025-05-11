@@ -1,10 +1,36 @@
 from flask import Flask
-from app.routes.routes import bp as routes_bp
+from flask_sqlalchemy import SQLAlchemy
+from flask_jwt_extended import JWTManager
+from flask_restx import Api
+from config import Config
+
+db = SQLAlchemy()
+jwt = JWTManager()
 
 def create_app():
     app = Flask(__name__)
-    app.config['SECRET_KEY'] = 'vitidata_protecao_api_2025'
+    app.config.from_object(Config)
 
-    app.register_blueprint(routes_bp)
+    db.init_app(app)
+    jwt.init_app(app)
+
+    # inicializa o Swagger
+    api = Api(
+        app,
+        version="1.0",
+        title="VitiData API",
+        description="API para raspagem e consulta de dados de vitivinicultura da Embrapa",
+        doc="/apidocs"
+    )
+
+    # registra namespaces em vez de blueprints
+    from app.auth import ns as auth_ns
+    api.add_namespace(auth_ns, path="/auth")
+
+    from app.routes.routes import ns as wines_ns
+    api.add_namespace(wines_ns, path="/")
+
+    with app.app_context():
+        db.create_all()
 
     return app

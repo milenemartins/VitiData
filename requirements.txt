@@ -1,6 +1,11 @@
-Flask
+flask==2.3.3
+flask_sqlalchemy==3.0.3
+flask_jwt_extended==4.4.4
+flask-restx==1.2.0
+pydantic==2.11.4
 requests
 beautifulsoup4==4.12.2
 python-dotenv
 selenium==4.15.2
 pandas==2.1.3
+passlib[bcrypt]==1.7.4

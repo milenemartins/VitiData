@@ -40,7 +40,7 @@ def extrair_tabela(soup):
 
 def scrape_comercializacao_page():
     dados = []
-    for ano in range(1970, 2024):
+    for ano in range(1999, 2024):
         print(f"Coletando comercialização - {ano}")
         try:
             url = f"http://vitibrasil.cnpuv.embrapa.br/index.php?ano={ano}&opcao=opt_04"
@@ -62,33 +62,30 @@ def scrape_comercializacao_page():
             })
         time.sleep(0.5)
     print(f"\nRaspagem finalizada. Total de anos: {len(dados)}")
-    return dados
 
+    validados = []
 
-# ==== Validação ====
+    for ano_bloco in dados:
+        ano = ano_bloco["ano"]
+        for registro in ano_bloco["registros"]:
+            try:
+                # Converte string para float antes da validação
+                qtd_raw = registro["quantidade_litros"].strip().lower()
+                if qtd_raw in ["-", "nd", ""]:
+                    registro["quantidade_litros"] = 0.0
+                else:
+                    registro["quantidade_litros"] = float(qtd_raw.replace('.', '').replace(',', '.'))
 
-dados = scrape_comercializacao_page()
+                item = ComercializacaoItem(**registro)
+                validados.append(item)
+            except ValidationError as e:
+                print(f"❌ Erro no ano {ano} com registro {registro}:\n{e}")    
 
-validados = []
+    dados_validados["comercializacao"] = validados
 
-for ano_bloco in dados:
-    ano = ano_bloco["ano"]
-    for registro in ano_bloco["registros"]:
-        try:
-            # Converte string para float antes da validação
-            qtd_raw = registro["quantidade_litros"].strip().lower()
-            if qtd_raw in ["-", "nd", ""]:
-                registro["quantidade_litros"] = 0.0
-            else:
-                registro["quantidade_litros"] = float(qtd_raw.replace('.', '').replace(',', '.'))
+    #P/ O Modelo
 
-            item = ComercializacaoItem(**registro)
-            validados.append(item)
-        except ValidationError as e:
-            print(f"❌ Erro no ano {ano} com registro {registro}:\n{e}")    
+    df = pd.DataFrame([v.dict() for v in validados])
+    df.to_csv("dadosComercializacao.csv", index=False)
 
-dados_validados["comercializacao"] = validados
-
-# Salvar CSV
-df = pd.json_normalize(validados)
-df.to_csv("dadosComercializacao.csv", index=False)
+    return [v.dict() for v in validados]

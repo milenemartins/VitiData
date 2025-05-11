@@ -12,6 +12,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+instance/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
@@ -23,7 +24,7 @@ Thumbs.db
 # Arquivos gerados
 *.csv
 *.log
+*.db
 
 # Arquivos de configuração pessoais
-*.env
 *.vscode/

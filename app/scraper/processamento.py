@@ -14,7 +14,7 @@ def scrape_all_processamento():
     current_year = datetime.datetime.now().year
     base_url = "http://vitibrasil.cnpuv.embrapa.br/index.php?opcao=opt_03&ano={ano}"
 
-    for ano in range(1970, current_year + 1):
+    for ano in range(1999, current_year + 1):
         print(f"Raspando dados do ano {ano}...")
 
         try:
@@ -65,29 +65,27 @@ def scrape_all_processamento():
                 print(f"Ano: {ano} | Tipo: {tipo} | Quantidade: {quantidade}")
 
     print(f"Raspagem concluída. Total de registros: {len(resultados)}")
-    return resultados
 
-# Executa o scraper
-dados_processamento = scrape_all_processamento()
+    validados = []
 
-# Validação com Pydantic
-validados = []
-for item in dados_processamento:
-    try:
-        qtd_raw = item["quantidade"].strip().lower()
-        if qtd_raw in ["-", "nd", ""]:
-            item["quantidade"] = 0.0
-        else:
-            item["quantidade"] = float(qtd_raw.replace('.', '').replace(',', '.'))
+    for item in resultados:
+        try:
+            qtd_raw = item["quantidade"].strip().lower()
+            if qtd_raw in ["-", "nd", ""]:
+                item["quantidade"] = 0.0
+            else:
+                item["quantidade"] = float(qtd_raw.replace('.', '').replace(',', '.'))
 
-        validado = VinhoEntrada(**item)
-        validados.append(validado)
-    except ValidationError as e:
-        print(f"❌ Erro de validação no registro: {item}\n{e}")
+            validado = VinhoEntrada(**item)
+            validados.append(validado)
+        except ValidationError as e:
+            print(f"❌ Erro de validação no registro: {item}\n{e}")
 
 
-dados_validados["processamento"] = validados
+    dados_validados["processamento"] = validados
 
-# Salvar CSV
-df = pd.DataFrame([v.dict() for v in validados])
-df.to_csv("dadosProcessamento.csv", index=False)
+    # Salvar CSV
+    df = pd.DataFrame([v.dict() for v in validados])
+    df.to_csv("dadosProcessamento.csv", index=False)
+
+    return [v.dict() for v in validados]
