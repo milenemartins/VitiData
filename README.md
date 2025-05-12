@@ -28,10 +28,10 @@ Os dados coletados ficam armazenados num banco SQLite (por padrão) e podem alim
 
 * **/auth/register** (POST): registra novo usuário.
 * **/auth/login** (POST): faz login e retorna token JWT.
-* **/scrape** (POST): dispara a raspagem de uma das categorias (`producao`, `processamento`, `comercializacao`, `importacao`, `exportacao`).
+* **/wines/scrape** (POST): dispara a raspagem de uma das categorias (`producao`, `processamento`, `comercializacao`, `importacao`, `exportacao`).
 * **/wines** (GET): lista registros, com filtros opcionais por `pagina`, `ano` e `vinho`.
 * **/wines/{id}** (GET): detalha um registro específico.
-* **/apidocs/**: interface Swagger interativa para explorar todos os endpoints.
+* **/apidocs**: interface Swagger interativa para explorar todos os endpoints.
 * **run.py --clean**: comando para apagar diretórios `__pycache__`, a pasta `instance/` e arquivos `.db` antes de iniciar a API.
 
 ---
@@ -42,7 +42,6 @@ Os dados coletados ficam armazenados num banco SQLite (por padrão) e podem alim
 VitiData/
 ├── app/
 │   ├── __init__.py        # App factory, init de DB, JWT e Swagger
-│   ├── config.py          # Configurações via .env
 │   ├── auth.py            # Namespace de autenticação (Flask-RESTX)
 │   ├── models.py          # Models User e WineData (SQLAlchemy)
 │   ├── routes/            # Namespace de scraping e consulta
@@ -50,6 +49,7 @@ VitiData/
 │   ├── scraper/           # Módulos de scraping por categoria
 │   └── state/             # Estado em memória (validados)
 ├── run.py                 # Entry point e script de limpeza
+│── config.py          # Configurações via .env
 ├── requirements.txt       # Dependências
 └── README.md              # Documentação do projeto
 ```
@@ -108,7 +108,7 @@ VitiData/
 
    * **Register**: POST `{{base_url}}/auth/register`
    * **Login**: POST `{{base_url}}/auth/login` (salvar `{{token}}` via script de teste)
-   * **Scrape Produção**: POST `{{base_url}}/scrape` (body `{ "pagina":"producao" }`)
+   * **Scrape Produção**: POST `{{base_url}}/wines/scrape` (body `{ "pagina":"producao" }`)
    * **List Wines**: GET `{{base_url}}/wines`
    * **Get Wine by ID**: GET `{{base_url}}/wines/{{id}}`
 3. Use header `Authorization: Bearer {{token}}` nas rotas protegidas.
