@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 
-
 # Produção, Processamento e Comercialização
 class VinhoBase(BaseModel):
     ano: int = Field(..., ge=1970, le=2100)
