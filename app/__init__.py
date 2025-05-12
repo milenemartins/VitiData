@@ -14,7 +14,6 @@ def create_app():
     db.init_app(app)
     jwt.init_app(app)
 
-    # inicializa o Swagger
     api = Api(
         app,
         version="1.0",
@@ -23,13 +22,12 @@ def create_app():
         doc="/apidocs"
     )
 
-    # registra namespaces em vez de blueprints
     from app.auth import ns as auth_ns
     api.add_namespace(auth_ns, path="/auth")
 
     from app.routes.routes import ns as wines_ns
-    api.add_namespace(wines_ns, path="/")
-
+    api.add_namespace(wines_ns)
+    
     with app.app_context():
         db.create_all()
 

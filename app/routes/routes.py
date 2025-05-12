@@ -1,8 +1,10 @@
-from flask_restx import Namespace, Resource, fields
+# app/routes/routes.py
+
 from flask import request
+from flask_restx import Namespace, Resource, fields
 from flask_jwt_extended import jwt_required
-from app.models import WineData
 from app import db
+from app.models import WineData
 from app.scraper import (
     scrape_producao_pages,
     scrape_exportacao,
@@ -54,27 +56,43 @@ class Scrape(Resource):
         if pagina not in SCRAPERS:
             ns.abort(400, "página inválida")
         items = SCRAPERS[pagina]()
-        # (sua lógica de salvar no banco aqui)
+        # persiste no banco
+        WineData.query.filter_by(categoria=pagina).delete()
+        for itm in items:
+            w = WineData(
+                categoria=pagina,
+                ano=itm.get("ano"),
+                tipo=itm.get("tipo"),
+                pais=itm.get("pais"),
+                quantidade=itm.get("quantidade"),
+                valor=itm.get("valor")
+            )
+            db.session.add(w)
+        db.session.commit()
         return {"status":"ok","pagina":pagina,"total":len(items)}, 200
 
 @ns.route("")
 class WineList(Resource):
     @ns.marshal_list_with(wine_model)
-    @ns.response(200, "Lista retornada")
     @jwt_required()
     def get(self):
         q = WineData.query
-        # (aplique filtros de query params)
-        results = q.all()
-        return results
+        pagina = request.args.get("pagina")
+        ano = request.args.get("ano", type=int)
+        vinho = request.args.get("vinho")
+        if pagina:
+            q = q.filter_by(categoria=pagina)
+        if ano:
+            q = q.filter_by(ano=ano)
+        if vinho:
+            q = q.filter(WineData.tipo.ilike(f"%{vinho}%"))
+        return q.all()
 
 @ns.route("/<int:id>")
 @ns.param("id", "ID do registro")
 class WineDetail(Resource):
     @ns.marshal_with(wine_model)
-    @ns.response(200, "Registro encontrado")
     @ns.response(404, "Não encontrado")
     @jwt_required()
     def get(self, id):
-        w = WineData.query.get_or_404(id)
-        return w
+        return WineData.query.get_or_404(id)
