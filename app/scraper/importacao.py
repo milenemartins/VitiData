@@ -1,16 +1,12 @@
-import os
-import time
-import csv
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+import requests
 from bs4 import BeautifulSoup
+from unicodedata import normalize, combining
+import pandas as pd
 from app.schemas.vinho import ComercioEntrada
 from pydantic import ValidationError
 from app.state.validados import dados_validados
-import pandas as pd
 
-
-# Mapeamento de categorias e seus códigos no site
+# Mapeamento das categorias e seus códigos
 categorias = {
     "vinhosDeMesa": "subopt_01",
     "espumantes": "subopt_02",
@@ -19,223 +15,101 @@ categorias = {
     "sucoDeUva": "subopt_05"
 }
 
-# Anos disponíveis no site
-anoAtual = 2024
-anoInicial = 1999
+def normalizar_string(texto):
+    texto_normalizado = normalize('NFKD', texto)
+    substituicoes = {
+        "º": "", "“": "\"", "”": "\"", "–": "-", "°": ""
+    }
+    for caractere, novo in substituicoes.items():
+        texto_normalizado = texto_normalizado.replace(caractere, novo)
+    return ''.join(c for c in texto_normalizado if not combining(c))
 
-
-def iniciarDriver():
-    options = Options()
-    options.add_argument("--headless=new")  # novo modo headless
-    options.add_argument("--disable-gpu")   # evita bugs no windows
-    options.add_argument("--no-sandbox")    # necessário para alguns ambientes
-    options.add_argument("--window-size=1920,1080")  # resolução da minha tela
-    
-    # Tive problemas com certificados no site da Embrapa
-    options.add_argument("--allow-running-insecure-content")
-    options.add_argument("--ignore-certificate-errors")
-    options.add_argument("--unsafely-treat-insecure-origin-as-secure=http://vitibrasil.cnpuv.embrapa.br")
-    
-    driver = webdriver.Chrome(options=options)
-    return driver
-
-def definirIntervaloAnos():
-    print("\n📌 Escolha o intervalo de anos:")
-    print("1 - Último ano (2024)")
-    print("2 - Um ano específico")
-    print("3 - Últimos 5 anos")
-    print("4 - Últimos 10 anos")
-    print("5 - Todos os anos (1970 a 2024)")  # para o dataset completo, mas demora beeeeeeem mais
-    
-    escolha = input("Digite o número da opção desejada: ")
-    
-    # Processamento da escolha
-    if escolha == "1":
-        return [anoAtual]
-    elif escolha == "2":
-        ano = int(input("Digite o ano desejado (ex: 2005): "))
-        if ano < anoInicial or ano > anoAtual:
-            raise ValueError("Ano fora do intervalo permitido.")
-        return [ano]
-    elif escolha == "3":
-        return list(range(anoAtual - 4, anoAtual + 1))
-    elif escolha == "4":
-        return list(range(anoAtual - 9, anoAtual + 1))
-    elif escolha == "5":
-        # Pega todos os anos disponíveis
-        return list(range(anoInicial, anoAtual + 1))
-    else:
-        raise ValueError("Opção inválida.")
-
-def extrairPorCategoriaEAnos(driver, nomeCategoria, subopcao, anos):
-    dadosColetados = []  # lista para armazenar os dados
-    
-    for ano in anos:
-        url = f"http://vitibrasil.cnpuv.embrapa.br/index.php?ano={ano}&opcao=opt_05&subopcao={subopcao}"
-        print(f"🔄 Coletando: {nomeCategoria} - {ano}")
-        
-        # Acessar a página
-        driver.get(url)
-        time.sleep(2)
-        
-        # Parse do HTML
-        html = driver.page_source
-        soup = BeautifulSoup(html, "html.parser")
-        
-        # Localizar a tabela de dados
-        tabela = soup.find("table", {"class": "tb_base tb_dados"})
-        
-        if not tabela:
-            print(f"⚠️ Tabela não encontrada para {nomeCategoria} em {ano}")
-            continue
-        
-        # Extrair dados das linhas
-        linhas = tabela.find("tbody").find_all("tr")
-        for linha in linhas:
-            cels = linha.find_all("td")
-            if len(cels) >= 3:
-                pais = cels[0].text.strip()
-                qtd = cels[1].text.strip()
-                valor = cels[2].text.strip()
-                
-                # Adicionar à lista de resultados
-                dadosColetados.append([ano, pais, qtd, valor])
-    
-    return dadosColetados
-
-def salvarCsv(dados, nomeCategoria):
-    
-    # Criar diretório se não existir
-    os.makedirs("dadosImportacao", exist_ok=True)
-    nomeArquivo = f"dadosImportacao/{nomeCategoria}.csv"
-    
-    # Processar os dados antes de salvar
-    dadosProcessados = []
-    for row in dados:
-        ano = int(row[0])
-        pais = row[1]
-        
-        # Tratar a quantidade
-        if row[2].strip() == '-' or not row[2].strip():
-            quantidade = 0.0
-        else:
-            # Remover pontos de milhar e converter para float
-            quantidade = row[2].replace('.', '')
-            quantidade = float(quantidade.replace(',', '.'))
-        
-        # Tratar o valor
-        if row[3].strip() == '-' or not row[3].strip():
-            valor = 0.0 
-        else:
-            # Remover pontos de milhar e converter para float
-            valor = row[3].replace('.', '')
-            valor = float(valor.replace(',', '.'))
-        
-        # Adicionar a categoria aos dados
-        dadosProcessados.append([ano, pais, nomeCategoria, quantidade, valor])
-    
-    # Escrever no arquivo
-    with open(nomeArquivo, mode="w", newline="", encoding="utf-8") as arquivo:
-        writer = csv.writer(arquivo)
-        writer.writerow([
-            "Ano", 
-            "PaisOrigem", 
-            "CategoriaProtudo", 
-            "QuantidadeKg", 
-            "ValorUsd"
-        ])
-        writer.writerows(dadosProcessados)
-    
-    print(f"✅ CSV salvo: {nomeArquivo}")
-    
-    return len(dadosProcessados)
-
-def coletarTudo():
-    try:
-        # Obter intervalo de anos desejado
-        anosSelecionados = definirIntervaloAnos()
-    except ValueError as erro:
-        print(f"❌ Erro: {erro}")
-        return
-    
-    # Iniciar o navegador
-    chrome = iniciarDriver()
-    
-    # Para cada categoria, extrair dados
-    for categoriaNome, codigo in categorias.items():
-        # Extrair dados
-        resultado = extrairPorCategoriaEAnos(chrome, categoriaNome, codigo, anosSelecionados)
-        
-        # Salvar resultados se houver dados
-        if resultado:
-            salvarCsv(resultado, categoriaNome)
-        else:
-            print(f"⚠️ Nenhum dado encontrado para: {categoriaNome}")
-    
-    # Fechar navegador
-    chrome.quit()
-    print("🏁 Finalizado!")
-    
 def scrape_importacao():
-    try:
-        # Obter intervalo de anos desejado
-        anosSelecionados = definirIntervaloAnos()
-    except ValueError as erro:
-        print(f"❌ Erro: {erro}")
-        exit()
+    print("Iniciando raspagem de dados de importação...\n")
+    resultados = []
 
-    chrome = iniciarDriver()
+    base_url = "http://vitibrasil.cnpuv.embrapa.br/index.php?ano={ano}&opcao=opt_05&subopcao={subopcao}"
+
+    for categoria, subopcao in categorias.items():
+        print(f"\n🔹 Categoria: {categoria}")
+
+        for ano in range(2024, 1998, -1):
+            print(f"Raspando dados do ano {ano}...")
+
+            url = base_url.format(ano=ano, subopcao=subopcao)
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+            except requests.RequestException as e:
+                print(f"❌ Erro ao acessar {url}: {e}")
+                continue
+
+            soup = BeautifulSoup(response.content, 'html.parser')
+            tabela = soup.find("table", {"class": "tb_base tb_dados"})
+
+            if not tabela:
+                print(f"⚠️ Sem dados para {categoria} no ano {ano}. Pulando...")
+                continue
+
+            linhas = tabela.find_all("tr")
+            if not linhas:
+                print(f"⚠️ Nenhuma linha encontrada para {categoria} no ano {ano}. Pulando...")
+                continue
+
+            for linha in linhas[1:]:  # Ignorar cabeçalho
+                colunas = linha.find_all("td")
+                if len(colunas) < 3:
+                    continue
+
+                pais = normalizar_string(colunas[0].get_text(strip=True))
+                quantidade = colunas[1].get_text(strip=True)
+                valor = colunas[2].get_text(strip=True)
+
+                resultados.append({
+                    "ano": ano,
+                    "categoria": categoria,
+                    "pais": pais,
+                    "quantidade": quantidade,
+                    "valor": valor
+                })
+
+                print(f"Ano: {ano} | Categoria: {categoria} | País: {pais} | Quantidade: {quantidade} | Valor: {valor}")
+
+    print(f"\nRaspagem concluída. Total de registros coletados: {len(resultados)}")
+
+    # Validação e transformação
     validados = []
 
-    for categoriaNome, codigo in categorias.items():
-        resultado = extrairPorCategoriaEAnos(chrome, categoriaNome, codigo, anosSelecionados)
+    for item in resultados:
+        try:
+            qtd_raw = item["quantidade"].strip().lower()
+            if qtd_raw in ["-", "nd", ""]:
+                item["quantidade"] = 0.0
+            else:
+                item["quantidade"] = float(qtd_raw.replace('.', '').replace(',', '.'))
 
-        if resultado:
-            salvarCsv(resultado, categoriaNome)
-            
-            # Validação Pydantic
-            for row in resultado:
-                try:
-                    ano = int(row[0])
-                    pais = row[1]
+            val_raw = item["valor"].strip().lower()
+            if val_raw in ["-", "nd", ""]:
+                item["valor"] = 0.0
+            else:
+                item["valor"] = float(val_raw.replace('.', '').replace(',', '.'))
 
-                    qtd_raw = row[2].strip().lower()
-                    if qtd_raw in ["-", "nd", ""]:
-                        quantidade = 0.0
-                    else:
-                        quantidade = float(qtd_raw.replace('.', '').replace(',', '.'))
-
-                    val_raw = row[3].strip().lower()
-                    if val_raw in ["-", "nd", ""]:
-                        valor = 0.0
-                    else:
-                        valor = float(val_raw.replace('.', '').replace(',', '.'))
-
-                    registro = {
-                        "ano": ano,
-                        "categoria": categoriaNome,
-                        "pais": pais,
-                        "quantidade": quantidade,
-                        "valor": valor
-                    }
-
-                    item = ComercioEntrada(**registro)
-                    validados.append(item)
-
-                except ValidationError as e:
-                    print(f"❌ Erro de validação para {categoriaNome} - {row}:\n{e}")
-
-        else:
-            print(f"⚠️ Nenhum dado encontrado para: {categoriaNome}")
-
-    chrome.quit()
-    print(f"🏁 Finalizado! Total de registros validados: {len(validados)}")
+            validado = ComercioEntrada(**item)
+            validados.append(validado)
+        except ValidationError as e:
+            print(f"❌ Erro de validação no registro: {item}\n{e}")
 
     dados_validados["importacao"] = validados
 
-    #P/ O Modelo
-
-    df = pd.DataFrame([v.dict() for v in validados])
+    # Exportar para CSV
+    df = pd.DataFrame([v.model_dump() for v in validados])
     df.to_csv("dadosImportacao.csv", index=False)
 
-    return [v.dict() for v in validados]
+    print(f"✅ Arquivo CSV salvo: dadosImportacao.csv")
+    print(f"✅ Total de registros validados: {len(validados)}")
+
+    return [v.model_dump() for v in validados]
+
+# Execução direta
+if __name__ == "__main__":
+    scrape_importacao()
